@@ -47,7 +47,7 @@ public:
     // DRAW PIXELS //
     /////////////////
 
-    void draw(sf::RenderTarget& target, sf::RenderStates states) const
+    void draw(sf::RenderTarget& target, sf::RenderStates states) const override 
     {
         sf::Image image;
         image.create(width, height, &_data[0]);
@@ -107,7 +107,7 @@ public:
     // PIXEL OPERATIONS //
     //////////////////////
 
-    using color_supplier = std::function<sf::Color(const Pixels& pixels, const sf::Vector2u& pixel)>;
+    using color_supplier = std::function<sf::Color(const sf::Vector2u& pixel)>;
 
     void execute(const color_supplier& supplier, std::size_t threads)
     {
@@ -119,13 +119,13 @@ public:
             for (; who < width * height; who += threads)
             {
                 auto pixel = sf::Vector2u( who % height, who / height);
-                set_color(pixel, supplier(*this, pixel));
+                set_color(pixel, supplier(pixel));
             }
         };
 
         std::vector<std::thread> pool;
         for (int who = 0; who < threads; ++who)
-            pool.push_back(std::thread(multi_supplier, who));
+            pool.emplace_back(multi_supplier, who);
 
         for (auto& thread : pool)
             thread.join();
@@ -136,7 +136,58 @@ public:
         sf::Vector2u pixel = { 0, 0 };
         for (; pixel.y < height; ++pixel.y)
             for (pixel.x = 0; pixel.x < width; ++pixel.x)
-                set_color(pixel, supplier(*this, pixel));
+                set_color(pixel, supplier(pixel));
+    }
+
+    ///////
+    // test code
+    /////// 
+
+    // (not well designed)
+
+    void execute(const color_supplier& supplier, std::size_t threads, sf::RenderWindow& target, sf::RenderStates states = sf::RenderStates::Default)
+    {
+        if (threads == 0)
+            return execute(supplier, target, states);
+        
+        auto multi_supplier = [&](auto who)
+        {
+            for (; who < width * height; who += threads)
+            {
+                auto pixel = sf::Vector2u( who % height, who / height);
+                set_color(pixel, supplier(pixel));
+            }
+        };
+
+        std::vector<std::thread> pool;
+        for (int who = 0; who < threads; ++who)
+            pool.emplace_back(multi_supplier, who);
+
+        for (auto& thread : pool)
+        {
+            while (thread.joinable())
+            {
+                target.draw(*this, states);
+                target.display();
+
+                sf::sleep(sf::milliseconds(10));
+            }
+            thread.join();
+        }
+        
+    }
+
+    void execute(const color_supplier& supplier, sf::RenderWindow& target, sf::RenderStates states = sf::RenderStates::Default)
+    {
+        sf::Vector2u pixel = { 0, 0 };
+        for (; pixel.y < height; ++pixel.y)
+        {
+            for (pixel.x = 0; pixel.x < width; ++pixel.x)
+                set_color(pixel, supplier(pixel));
+
+            target.draw(*this, states);
+            target.display();
+        }
     }
 
 };
