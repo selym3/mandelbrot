@@ -1,12 +1,48 @@
 #include "pixels.hpp"
+#include "constants.hpp"
+
+std::size_t mandelbrot(const mb::complex& c)
+{
+    mb::complex z = 0;
+
+    std::size_t iter = 0;
+    for (; iter < mb::MAX_ITERS; ++iter)
+    {
+        z = (z * z) + c;
+
+        if (std::abs(z) > mb::BOUNDS)
+            break;
+    }
+
+    return iter;
+}
+
+sf::Color get_color(const Pixels& pixels, const sf::Vector2u& pixel)
+{
+    auto c = mb::complex(
+        (pixel.x / static_cast<mb::number>(pixels.width)) * (mb::PLANE_WIDTH * 2) - (mb::PLANE_WIDTH),
+        (pixel.y / static_cast<mb::number>(pixels.height)) * (mb::PLANE_HEIGHT * 2) - (mb::PLANE_HEIGHT)
+    );
+
+    std::size_t iterations = mandelbrot(c);
+    mb::number density = iterations / static_cast<mb::number>(mb::MAX_ITERS);
+    std::size_t tmp = static_cast<std::size_t>(density * 255);
+
+    return sf::Color(tmp,tmp,tmp,tmp);
+}
 
 int main()
 {
     sf::RenderWindow window { 
-        sf::VideoMode{600, 600},
-        "Test Pixels",
+        sf::VideoMode {
+            window::WIDTH, 
+            window::HEIGHT
+        },
+        "Mandelbrot Viewer",
         sf::Style::None, 
     };
+
+    window.setPosition({ 1920/2, 1080/2 });
 
     Pixels pixels { 
         window.getSize() 
@@ -24,7 +60,12 @@ int main()
         }
 
         window.clear();
+
+        pixels.execute(get_color, 16);
+
         window.draw(pixels);
         window.display();
+
+        sf::sleep(sf::milliseconds(window::DELAY_MS));
     }
 }
