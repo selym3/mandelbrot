@@ -255,7 +255,9 @@ public:
             handle_event(e);
         }
 
-        calculate_set_multi(16);
+        if (!mcntrl.isDown(1))
+            calculate_set_multi(16);
+
         draw();
 
         update_view();
