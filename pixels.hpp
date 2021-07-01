@@ -3,8 +3,6 @@
 
 #include <SFML/Graphics.hpp>
 #include <vector>
-#include <functional>
-#include <thread>
 
 class Pixels : public sf::Drawable, public sf::Transformable
 {
@@ -148,93 +146,6 @@ public:
     template <typename T>
     sf::Color get_color(const sf::Vector2<T>& pixel) const
     { return get_color(pixel.x, pixel.y); }
-
-    //////////////////////
-    // PIXEL OPERATIONS //
-    //////////////////////
-
-    using color_supplier = std::function<sf::Color(const sf::Vector2u& pixel)>;
-
-    void execute(const color_supplier& supplier, std::size_t threads)
-    {
-        if (threads == 0) 
-            return execute(supplier);
-        
-        auto multi_supplier = [&](auto who)
-        {
-            for (; who < _width * _height; who += threads)
-            {
-                auto pixel = sf::Vector2u( who % _width, who / _width);
-                set_color(pixel, supplier(pixel));
-            }
-        };
-
-        std::vector<std::thread> pool;
-        for (int who = 0; who < threads; ++who)
-            pool.emplace_back(multi_supplier, who);
-
-        for (auto& thread : pool)
-            thread.join();
-    }
-
-    void execute(const color_supplier& supplier)
-    {
-        sf::Vector2u pixel = { 0, 0 };
-        for (; pixel.y < _height; ++pixel.y)
-            for (pixel.x = 0; pixel.x < _width; ++pixel.x)
-                set_color(pixel, supplier(pixel));
-    }
-
-    ///////
-    // test code
-    /////// 
-
-    // (not well designed)
-
-    void execute(const color_supplier& supplier, std::size_t threads, sf::RenderWindow& target, sf::RenderStates states = sf::RenderStates::Default)
-    {
-        if (threads == 0)
-            return execute(supplier, target, states);
-        
-        auto multi_supplier = [&](auto who)
-        {
-            for (; who < _width * _height; who += threads)
-            {
-                auto pixel = sf::Vector2u( who % _width, who / _width);
-                set_color(pixel, supplier(pixel));
-            }
-        };
-
-        std::vector<std::thread> pool;
-        for (int who = 0; who < threads; ++who)
-            pool.emplace_back(multi_supplier, who);
-
-        for (auto& thread : pool)
-        {
-            while (thread.joinable())
-            {
-                target.draw(*this, states);
-                target.display();
-
-                sf::sleep(sf::milliseconds(100));
-            }
-            thread.join();
-        }
-        
-    }
-
-    void execute(const color_supplier& supplier, sf::RenderWindow& target, sf::RenderStates states = sf::RenderStates::Default)
-    {
-        sf::Vector2u pixel = { 0, 0 };
-        for (; pixel.y < _height; ++pixel.y)
-        {
-            for (pixel.x = 0; pixel.x < _width; ++pixel.x)
-                set_color(pixel, supplier(pixel));
-
-            target.draw(*this, states);
-            target.display();
-        }
-    }
 
 };
 

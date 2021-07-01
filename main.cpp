@@ -1,5 +1,5 @@
 /*
-clang++  main.cpp -lsfml-window -lsfml-graphics -lsfml-system -o main && ./main
+clang++  main.cpp -lsfml-window -lsfml-graphics -lsfml-system -pthread -o main && ./main
 */
 
 #include <iostream>
