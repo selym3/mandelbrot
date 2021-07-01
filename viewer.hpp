@@ -4,6 +4,7 @@
 #include <SFML/Graphics.hpp>
 #include "pixels.hpp"
 #include "mandelbrot.hpp"
+#include "mcntrl.hpp"
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const sf::Vector2<T>& rhs)
@@ -17,6 +18,8 @@ private:
 
     sf::RenderWindow _window;
     Pixels _pixels;
+
+    MouseControl mcntrl;
 
 private:
 
@@ -90,54 +93,7 @@ private:
         scale_pixels();
     }
 
-
-public:
-
-    Viewer(std::size_t width, std::size_t height) :
-        _window { 
-            sf::VideoMode(width, height), 
-            "Mandelbrot Viewer",
-            sf::Style::Default
-        },
-        _pixels { _window.getSize() }
-    {
-        center();
-        reset_screen();
-    }
-
-    bool is_running() const
-    { return _window.isOpen(); }
-    
-    void handle_event(sf::Event& e)
-    {
-        if (e.type == sf::Event::Closed)
-        {
-            _window.close();
-        }
-        else if (e.type == sf::Event::Resized)
-        {
-            reset_screen();
-        }
-    }
-
-    void draw()
-    {
-        _window.clear(sf::Color::Black);
-        _window.draw(_pixels);
-        _window.display();
-    }
-
-    void update()
-    {
-        sf::Event e;
-        while (_window.pollEvent(e))
-        {
-            handle_event(e);
-        }
-
-        calculate_set();
-        draw();
-    }
+private:
 
     sf::Color get_color( const sf::Vector2f& coords )
     {
@@ -163,6 +119,121 @@ public:
                 _pixels.set_color(pixel, get_color(coords));
             }
         }
+    }
+
+private:
+
+    void draw()
+    {
+        _window.clear(sf::Color::Black);
+        _window.draw(_pixels);
+        _window.display();
+    }
+
+private:
+
+    void handle_event(sf::Event& e)
+    {
+        if (e.type == sf::Event::Closed)
+        {
+            _window.close();
+        }
+        else if (e.type == sf::Event::Resized)
+        {
+            reset_screen();
+        }
+        else if (e.type == sf::Event::MouseWheelScrolled)
+        {
+            float scalar = e.mouseWheel.delta > 0 ? 1.01f : 0.99f; 
+            zoom_about(scalar, getMousePosition());
+        }
+        else if (e.type == sf::Event::KeyPressed)
+        {
+            if (e.key.code == sf::Keyboard::Escape)
+            {
+                _window.close();
+                return;
+            }
+
+            // test code
+            else if (e.key.code == sf::Keyboard::Up)
+            {
+                ++mb::MAX_ITERS;
+            }
+            else if (e.key.code == sf::Keyboard::Down)
+            {
+                --mb::MAX_ITERS;
+            }
+        }
+    }
+
+    template <typename Vt = sf::Vector2i>
+    Vt getMousePosition() const
+    { return static_cast<Vt>(sf::Mouse::getPosition(_window)); }
+
+    void zoom_about(float scalar, const sf::Vector2i& pixel)
+    {
+        auto view = _window.getView();
+
+        auto before = _window.mapPixelToCoords(pixel);
+        view.zoom(scalar);
+        view.move(before - _window.mapPixelToCoords(pixel, view));
+
+        _window.setView(view);
+    }
+
+    sf::Vector2i start = { 0, 0 };
+    void update_view()
+    {
+        if (mcntrl.isPressed(0))
+            start = getMousePosition();
+        
+        if (mcntrl.isHeld(0))
+        {
+            // Calculate offset based on last mouse position
+            const auto mouse = getMousePosition();
+            auto worldset = _window.mapPixelToCoords(mouse) - _window.mapPixelToCoords(start);
+
+            // Apply offset
+            auto view = _window.getView();
+            view.move(-worldset);
+            _window.setView(view);
+            
+            // Reset mouse position
+            start = mouse;
+        }
+    }
+
+public:
+
+    Viewer(std::size_t width, std::size_t height) :
+        _window { 
+            sf::VideoMode(width, height), 
+            "Mandelbrot Viewer",
+            sf::Style::Default
+        },
+        _pixels { _window.getSize() }
+    {
+        center();
+        reset_screen();
+    }
+
+    bool is_running() const
+    { return _window.isOpen(); }
+
+    void update()
+    {
+        sf::Event e;
+        while (_window.pollEvent(e))
+        {
+            handle_event(e);
+        }
+
+        calculate_set();
+        draw();
+
+        update_view();
+        mcntrl.update();
     }
 
 };
