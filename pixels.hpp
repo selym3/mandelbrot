@@ -12,25 +12,24 @@ class Pixels : public sf::Drawable, public sf::Transformable
     // BUFFER DATA //
     /////////////////
 
+    std::size_t _width, _height;
     std::vector<sf::Uint8> _data;
 
     std::size_t _get_size() const 
-    { return width * height * 4; }
+    { return _width * _height * 4; }
 
     std::size_t _get_index(const std::size_t x, const std::size_t y) const
-    { return (( y * width ) + x) * 4; }
+    { return (( y * _width ) + x) * 4; }
 
 public:
     ///////////////////
     // CREATE BUFFER //
     ///////////////////
 
-    const std::size_t width, height;
-
-    Pixels(std::size_t width, std::size_t height) :
-        width { width }, height { height }
+    Pixels(std::size_t _width, std::size_t _height) : 
+        _width { 0 }, _height { 0 } // <-- set_size will handle this
     {
-        _data.reserve(_get_size());
+        set_size(_width, _height);
     }
 
     Pixels(const sf::Vector2u& size) : 
@@ -43,6 +42,49 @@ public:
     {
     }
 
+    ////////////////////
+    // READ META DATA //
+    ////////////////////
+
+    std::size_t get_width() const
+    { return _width; }
+
+    std::size_t get_height() const
+    { return _height; }
+
+    sf::Vector2<std::size_t> get_size() const
+    { return { get_width(), get_height() }; }
+
+    /////////////////////
+    // WRITE META DATA //
+    /////////////////////
+
+    template <typename T>
+    bool set_size(const sf::Vector2<T>& size)
+    {
+        const auto old_size = _get_size();
+
+        _width = size.x, _height = size.y;
+        const auto new_size = _get_size();
+
+        if (new_size > old_size)
+        {
+            _data.reserve(new_size);
+            return true;
+        }
+
+        return false;
+    }
+
+    bool set_size(std::size_t width, std::size_t height)
+    { return set_size(sf::Vector2<std::size_t>{ width, height }); }
+
+    bool set_width(std::size_t width) 
+    { return set_size(sf::Vector2<std::size_t>{ width, get_height() }); }
+
+    bool set_height(std::size_t height) 
+    { return set_size(sf::Vector2<std::size_t>{ get_width(), height }); }
+
     /////////////////
     // DRAW PIXELS //
     /////////////////
@@ -50,7 +92,7 @@ public:
     void draw(sf::RenderTarget& target, sf::RenderStates states) const override 
     {
         sf::Image image;
-        image.create(width, height, &_data[0]);
+        image.create(_width, _height, &_data[0]);
 
         sf::Texture texture;
         texture.loadFromImage(image);
@@ -120,9 +162,9 @@ public:
         
         auto multi_supplier = [&](auto who)
         {
-            for (; who < width * height; who += threads)
+            for (; who < _width * _height; who += threads)
             {
-                auto pixel = sf::Vector2u( who % width, who / width);
+                auto pixel = sf::Vector2u( who % _width, who / _width);
                 set_color(pixel, supplier(pixel));
             }
         };
@@ -138,8 +180,8 @@ public:
     void execute(const color_supplier& supplier)
     {
         sf::Vector2u pixel = { 0, 0 };
-        for (; pixel.y < height; ++pixel.y)
-            for (pixel.x = 0; pixel.x < width; ++pixel.x)
+        for (; pixel.y < _height; ++pixel.y)
+            for (pixel.x = 0; pixel.x < _width; ++pixel.x)
                 set_color(pixel, supplier(pixel));
     }
 
@@ -156,9 +198,9 @@ public:
         
         auto multi_supplier = [&](auto who)
         {
-            for (; who < width * height; who += threads)
+            for (; who < _width * _height; who += threads)
             {
-                auto pixel = sf::Vector2u( who % width, who / width);
+                auto pixel = sf::Vector2u( who % _width, who / _width);
                 set_color(pixel, supplier(pixel));
             }
         };
@@ -184,9 +226,9 @@ public:
     void execute(const color_supplier& supplier, sf::RenderWindow& target, sf::RenderStates states = sf::RenderStates::Default)
     {
         sf::Vector2u pixel = { 0, 0 };
-        for (; pixel.y < height; ++pixel.y)
+        for (; pixel.y < _height; ++pixel.y)
         {
-            for (pixel.x = 0; pixel.x < width; ++pixel.x)
+            for (pixel.x = 0; pixel.x < _width; ++pixel.x)
                 set_color(pixel, supplier(pixel));
 
             target.draw(*this, states);
