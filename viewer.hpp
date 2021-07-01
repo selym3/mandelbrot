@@ -2,6 +2,9 @@
 #define __VIEWER_HPP__
 
 #include <SFML/Graphics.hpp>
+#include <vector>
+#include <thread>
+
 #include "pixels.hpp"
 #include "mandelbrot.hpp"
 #include "mcntrl.hpp"
@@ -121,6 +124,29 @@ private:
         }
     }
 
+    void calculate_set_multi(std::size_t threads)
+    {
+        if (threads == 0) return calculate_set();
+        
+        auto multi_supplier = [&](int who)
+        {
+            const sf::Vector2i size = static_cast<sf::Vector2i>(_window.getSize());
+            for (; who < size.x * size.y; who += threads)
+            {
+                const sf::Vector2i pixel { who % size.x, who / size.x };
+                const sf::Vector2f coord = _window.mapPixelToCoords(pixel);
+                _pixels.set_color(pixel, get_color(coord));
+            }
+        };
+
+        std::vector<std::thread> pool;
+        for (int who = 0; who < threads; ++who)
+            pool.emplace_back(multi_supplier, who);
+
+        for (auto& thread : pool)
+            thread.join();
+    }
+
 private:
 
     void draw()
@@ -144,7 +170,7 @@ private:
         }
         else if (e.type == sf::Event::MouseWheelScrolled)
         {
-            float scalar = e.mouseWheel.delta > 0 ? 1.01f : 0.99f; 
+            float scalar = e.mouseWheelScroll.delta > 0 ? 1.01f : 0.99f;
             zoom_about(scalar, getMousePosition());
         }
         else if (e.type == sf::Event::KeyPressed)
@@ -229,7 +255,7 @@ public:
             handle_event(e);
         }
 
-        calculate_set();
+        calculate_set_multi(16);
         draw();
 
         update_view();
