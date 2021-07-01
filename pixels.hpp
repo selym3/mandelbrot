@@ -6,7 +6,7 @@
 #include <functional>
 #include <thread>
 
-class Pixels : public sf::Drawable
+class Pixels : public sf::Drawable, public sf::Transformable
 {
     /////////////////
     // BUFFER DATA //
@@ -58,6 +58,7 @@ public:
         sf::Sprite sprite;
         sprite.setTexture(texture, true);
 
+        states.transform *= getTransform();
         target.draw(sprite, states);
     }
 
@@ -75,13 +76,15 @@ public:
         _data[index + 3] = color.a;
     }
     
-    void set_color(const sf::Vector2u& pixel, const sf::Color& color)
+    template <typename T>
+    void set_color(const sf::Vector2<T>& pixel, const sf::Color& color)
     { set_color(pixel.x, pixel.y, color); }
 
     void set_color(std::size_t x, std::size_t y, sf::Uint32 rgba)
     { set_color(x, y, sf::Color(rgba)); }
 
-    void set_color(const sf::Vector2u& pixel, sf::Uint32 rgba)
+    template <typename T>
+    void set_color(const sf::Vector2<T>& pixel, sf::Uint32 rgba)
     { set_color(pixel.x, pixel.y, rgba); }
 
     /////////////////
@@ -100,7 +103,8 @@ public:
         );
     }
 
-    sf::Color get_color(const sf::Vector2u& pixel) const
+    template <typename T>
+    sf::Color get_color(const sf::Vector2<T>& pixel) const
     { return get_color(pixel.x, pixel.y); }
 
     //////////////////////
@@ -118,7 +122,7 @@ public:
         {
             for (; who < width * height; who += threads)
             {
-                auto pixel = sf::Vector2u( who % height, who / height);
+                auto pixel = sf::Vector2u( who % width, who / width);
                 set_color(pixel, supplier(pixel));
             }
         };
@@ -154,7 +158,7 @@ public:
         {
             for (; who < width * height; who += threads)
             {
-                auto pixel = sf::Vector2u( who % height, who / height);
+                auto pixel = sf::Vector2u( who % width, who / width);
                 set_color(pixel, supplier(pixel));
             }
         };
@@ -170,7 +174,7 @@ public:
                 target.draw(*this, states);
                 target.display();
 
-                sf::sleep(sf::milliseconds(10));
+                sf::sleep(sf::milliseconds(100));
             }
             thread.join();
         }
