@@ -5,7 +5,6 @@
 #include <vector>
 #include <thread>
 
-#include "camera.hpp"
 #include "pixels.hpp"
 #include "mandelbrot.hpp"
 #include "mcntrl.hpp"
@@ -16,6 +15,14 @@ std::ostream& operator<<(std::ostream& os, const sf::Vector2<T>& rhs)
     return os << "( " << rhs.x << " , " << rhs.y << " )";
 }
 
+// mb::camera make_camera(const sf::RenderTarget& target, const mb::vec2& b, const mb::vec2& t)
+// {
+//     return mb::camera(
+//         mb::vec2(0), mb::vec2::from(target.getSize()),
+//         b, t
+//     );
+// }
+
 class Viewer
 {
 private:
@@ -23,10 +30,8 @@ private:
     sf::RenderWindow _window;
     Pixels _pixels;
 
-    Camera<mb::number> _camera;
-    using vec2 = Vec2<mb::number>;
-
-    MouseControl mcntrl;
+    mb::camera _camera;
+    MouseControl _mcntrl;
 
 private:
 
@@ -42,68 +47,23 @@ private:
         _window.setPosition(vm);
     }
 
-    // sf::Vector2f uv;
-    float start_size = 4.0f;
-    float zoom = start_size;
-
-    void scale_window()
+    void scale()
     {
-        // Find pixel size of window
-        auto size = _window.getSize();
-
-        // Create a copy of the window's view to modify it
-        auto view = _window.getView();
-        view.setCenter({ 0, 0 });
-
-        // Always have the smallest dimension be the size of the
-        // zoom
-        if (size.x > size.y)
-        {
-            float a = size.x / static_cast<float>(size.y);
-            view.setSize({ a * zoom, zoom });
-        }
-        else
-        {
-            float a = size.y / static_cast<float>(size.x);
-            view.setSize({ zoom, a * zoom });
-        }
-
-        // Apply the changes to the window
-        _window.setView(view);
+        std::cout << "Implement resize scaling\n";
     }
 
-    void scale_pixels()
-    {
+    // const mb::vec2 bottom = mb::vec2(-2, -2),
+    //     top = mb::vec2(+2, +2);
+    
+    // mb::camera get_camera()
+    // {
+    //     return make_camera(_window, bottom, top);
+    // }
 
-        // Find the pixel size of the window (to scale the pixel buffer by)
-        const auto size = _window.getSize();
-        auto did_resize = _pixels.set_size(size);
-        // std::cout << "Buffer " << (did_resize ? "" : "not" ) << " resized\n";
-
-        // Find the camera space of the window (to scale the pixel rendering by)
-        const auto view = _window.getView();
-        const auto vsize = view.getSize();
-
-        auto uv = sf::Vector2f(
-            vsize.x / size.x,
-            vsize.y / size.y
-        );
-        _pixels.setScale(uv);
-
-        auto top_left = -vsize / 2.f;
-        _pixels.setPosition(top_left);
-    }
-
-    void reset_screen()
-    {
-        // scale_window();
-        // scale_pixels();
-        // std::cout << "Reset screen: No op!\n";
-    }
 
 private:
 
-    sf::Color get_color( const vec2& coords )
+    sf::Color get_color( const mb::vec2& coords )
     {
         // Complex number to iterate over 
         mb::complex c { coords.x, coords.y };
@@ -123,8 +83,7 @@ private:
         {
             for (pixel.x = 0; pixel.x < _pixels.get_width(); ++pixel.x)
             { 
-                auto coords = _camera.pixel_to_world(vec2::from(pixel));
-                // std::cout << coords << "\n";
+                auto coords = _camera.pixel_to_world(mb::vec2::from(pixel));
                 _pixels.set_color(pixel, get_color(coords));
             }
         }
@@ -140,7 +99,7 @@ private:
             for (; who < size.x * size.y; who += threads)
             {
                 const sf::Vector2u pixel { who % size.x, who / size.x };
-                const auto coord = _camera.pixel_to_world(vec2::from(pixel));
+                const auto coord = _camera.pixel_to_world(mb::vec2::from(pixel));
                 _pixels.set_color(pixel, get_color(coord));
             }
         };
@@ -172,7 +131,7 @@ private:
         }
         else if (e.type == sf::Event::Resized)
         {
-            reset_screen();
+            scale();
         }
         else if (e.type == sf::Event::MouseWheelScrolled)
         {
@@ -203,36 +162,33 @@ private:
     Vt getMousePosition() const
     { return static_cast<Vt>(sf::Mouse::getPosition(_window)); }
 
-    void zoom_about(float scalar, const sf::Vector2i& pixel)
-    {
-        auto view = _window.getView();
-        const auto _p = vec2::from(pixel);
-
-        auto before = _camera.pixel_to_world(_p);
-        _camera *= scalar;
-        _camera += (before - _camera.pixel_to_world(_p));
-    }
-
-    sf::Vector2i start = { 0, 0 };
+    mb::vec2 start = { 0, 0 };
     void update_view()
     {
-        if (mcntrl.isPressed(0))
-            start = getMousePosition();
+        if (_mcntrl.isPressed(0))
+            start = mb::vec2::from(getMousePosition());
         
-        if (mcntrl.isHeld(0))
+        if (_mcntrl.isHeld(0))
         {
             // Calculate offset based on last mouse position
-            const auto mouse = getMousePosition();
-            auto worldset = _window.mapPixelToCoords(mouse) - _window.mapPixelToCoords(start);
+            const auto mouse = mb::vec2::from(getMousePosition());
+            auto worldset = _camera.pixel_to_world(mouse) - _camera.pixel_to_world(start);
 
             // Apply offset
-            auto view = _window.getView();
-            view.move(-worldset);
-            _window.setView(view);
+            _camera -= worldset;
             
             // Reset mouse position
             start = mouse;
         }
+    }
+
+    void zoom_about(float scalar, const sf::Vector2i& pixel)
+    {
+        const auto _p = mb::vec2::from(pixel);
+
+        auto before = _camera.pixel_to_world(_p);
+        _camera *= scalar;
+        _camera += (before - _camera.pixel_to_world(_p));
     }
 
 public:
@@ -244,10 +200,9 @@ public:
             sf::Style::Default
         },
         _pixels { _window.getSize() },
-        _camera { 0, vec2::from(_window.getSize()), vec2(-2,-2), vec2(+2,+2) }
+        _camera { mb::vec2(0), mb::vec2::from(_window.getSize()), mb::vec2(-2,-2), mb::vec2(+2,+2) }
     {
         center();
-        reset_screen();
     }
 
     bool is_running() const
@@ -261,13 +216,12 @@ public:
             handle_event(e);
         }
 
-        if (!mcntrl.isDown(1))
-            calculate_set_multi(0);
-
+        // if (!sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
+        calculate_set_multi(16);
         draw();
 
         update_view();
-        mcntrl.update();
+        _mcntrl.update();
     }
 
 };

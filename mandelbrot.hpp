@@ -2,17 +2,37 @@
 #define __MANDELBROT_HPP__
 
 #include <complex>
-#include<boost/serialization/nvp.hpp>
+#include "util/camera.hpp"
+#include "util/vec2.hpp"
+
+#ifdef __MULTIPRECISION__
+#include <boost/serialization/nvp.hpp>
 #include <boost/multiprecision/cpp_bin_float.hpp> 
+// boost::multiprecision::cpp_bin_float_single;
+#endif
 
 namespace mb
 {
+
+    ///////////
+    // TYPES //
+    ///////////
+
     using number = double;
-    // using number = boost::multiprecision::cpp_bin_float_single;
     using complex = std::complex<number>;
+    using vec2 = util::vec2<number>;
+    using camera = util::camera<vec2>;
+
+    ///////////////
+    // CONSTANTS //
+    ///////////////
 
     static std::size_t MAX_ITERS = 20;
     static number BOUNDS = number(2);
+
+    /////////////
+    // HELPERS //
+    /////////////
 
     std::size_t mandelbrot(const complex& c)
     {

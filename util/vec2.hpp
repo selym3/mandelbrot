@@ -5,8 +5,11 @@
 #include <cmath>
 #include <SFML/System/Vector2.hpp>
 
+namespace util
+{
+
 template <typename T>
-struct Vec2
+struct vec2
 {
     //////////
     // DATA //
@@ -18,25 +21,25 @@ struct Vec2
     // CONSTRUCTORS //
     //////////////////
 
-    Vec2(const T& x, const T& y) : 
+    vec2(const T& x, const T& y) : 
         x {x}, y {y}
     {
     }
 
-    Vec2(const T& xy) :
-        Vec2(xy, xy)
+    vec2(const T& xy) :
+        vec2(xy, xy)
     {
     }
 
-    Vec2() :
-        Vec2(T{0})
+    vec2() :
+        vec2(T{0})
     {
     }
 
     template <typename U>
-    static Vec2 from(const U& v) 
+    static vec2 from(const U& v) 
     {
-        return Vec2( static_cast<T>(v.x), static_cast<T>(v.y) ); 
+        return vec2( static_cast<T>(v.x), static_cast<T>(v.y) ); 
     }
 
     template <typename U>
@@ -49,7 +52,7 @@ struct Vec2
     // VECTOR MATH //
     /////////////////
 
-    T dot(const Vec2& rhs)
+    T dot(const vec2& rhs)
     {
         return x * rhs.x + y * rhs.y;
     }
@@ -59,59 +62,65 @@ struct Vec2
         return std::hypot(x, y);
     }
 
-    ///////////////
-    // OPERATORS //
-    ///////////////
+    ////////////////
+    // ARITHMETIC //
+    ////////////////
 
-    Vec2& operator+=(const Vec2& rhs)
+    vec2& operator+=(const vec2& rhs)
     {
         x += rhs.x, y += rhs.y;
         return *this;
     }
 
-    friend Vec2 operator+(Vec2 lhs, const Vec2& rhs)
+    friend vec2 operator+(vec2 lhs, const vec2& rhs)
     {
         return lhs += rhs;
     }
 
-    Vec2& operator-=(const Vec2& rhs)
+    vec2& operator-=(const vec2& rhs)
     {
         x -= rhs.x, y -= rhs.y;
         return *this;
     }
 
-    friend Vec2 operator-(Vec2 lhs, const Vec2& rhs)
+    friend vec2 operator-(vec2 lhs, const vec2& rhs)
     {
         return lhs -= rhs;
     }
 
-    Vec2& operator*=(const Vec2& rhs)
+    vec2& operator*=(const vec2& rhs)
     {
         x *= rhs.x, y *= rhs.y;
         return *this;
     }
 
-    friend Vec2 operator*(Vec2 lhs, const Vec2& rhs)
+    friend vec2 operator*(vec2 lhs, const vec2& rhs)
     {
         return lhs *= rhs;
     }
 
-    Vec2& operator/=(const Vec2& rhs)
+    vec2& operator/=(const vec2& rhs)
     {
         x /= rhs.x, y /= rhs.y;
         return *this;
     }
 
-    friend Vec2 operator/(Vec2 lhs, const Vec2& rhs)
+    friend vec2 operator/(vec2 lhs, const vec2& rhs)
     {
         return lhs /= rhs;
     }
 
-    friend std::ostream& operator<<(std::ostream& os, const Vec2& rhs)
+    ///////////////
+    // OPERATORS //
+    ///////////////
+
+    friend std::ostream& operator<<(std::ostream& os, const vec2& rhs)
     {
         return os << "( " << rhs.x << " , " << rhs.y << " )";
     }
 
 };
+
+}
 
 #endif
