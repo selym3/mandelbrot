@@ -5,6 +5,7 @@
 #include <vector>
 #include <thread>
 
+#include "camera.hpp"
 #include "pixels.hpp"
 #include "mandelbrot.hpp"
 #include "mcntrl.hpp"
@@ -21,6 +22,9 @@ private:
 
     sf::RenderWindow _window;
     Pixels _pixels;
+
+    Camera<mb::number> _camera;
+    using vec2 = Vec2<mb::number>;
 
     MouseControl mcntrl;
 
@@ -92,13 +96,14 @@ private:
 
     void reset_screen()
     {
-        scale_window();
-        scale_pixels();
+        // scale_window();
+        // scale_pixels();
+        // std::cout << "Reset screen: No op!\n";
     }
 
 private:
 
-    sf::Color get_color( const sf::Vector2f& coords )
+    sf::Color get_color( const vec2& coords )
     {
         // Complex number to iterate over 
         mb::complex c { coords.x, coords.y };
@@ -118,7 +123,8 @@ private:
         {
             for (pixel.x = 0; pixel.x < _pixels.get_width(); ++pixel.x)
             { 
-                auto coords = _window.mapPixelToCoords(pixel);
+                auto coords = _camera.pixel_to_world(vec2::from(pixel));
+                // std::cout << coords << "\n";
                 _pixels.set_color(pixel, get_color(coords));
             }
         }
@@ -130,11 +136,11 @@ private:
         
         auto multi_supplier = [&](int who)
         {
-            const sf::Vector2i size = static_cast<sf::Vector2i>(_window.getSize());
+            const auto size = _window.getSize();
             for (; who < size.x * size.y; who += threads)
             {
-                const sf::Vector2i pixel { who % size.x, who / size.x };
-                const sf::Vector2f coord = _window.mapPixelToCoords(pixel);
+                const sf::Vector2u pixel { who % size.x, who / size.x };
+                const auto coord = _camera.pixel_to_world(vec2::from(pixel));
                 _pixels.set_color(pixel, get_color(coord));
             }
         };
@@ -200,12 +206,11 @@ private:
     void zoom_about(float scalar, const sf::Vector2i& pixel)
     {
         auto view = _window.getView();
+        const auto _p = vec2::from(pixel);
 
-        auto before = _window.mapPixelToCoords(pixel);
-        view.zoom(scalar);
-        view.move(before - _window.mapPixelToCoords(pixel, view));
-
-        _window.setView(view);
+        auto before = _camera.pixel_to_world(_p);
+        _camera *= scalar;
+        _camera += (before - _camera.pixel_to_world(_p));
     }
 
     sf::Vector2i start = { 0, 0 };
@@ -238,7 +243,8 @@ public:
             "Mandelbrot Viewer",
             sf::Style::Default
         },
-        _pixels { _window.getSize() }
+        _pixels { _window.getSize() },
+        _camera { 0, vec2::from(_window.getSize()), vec2(-2,-2), vec2(+2,+2) }
     {
         center();
         reset_screen();
@@ -256,7 +262,7 @@ public:
         }
 
         if (!mcntrl.isDown(1))
-            calculate_set_multi(16);
+            calculate_set_multi(0);
 
         draw();
 
