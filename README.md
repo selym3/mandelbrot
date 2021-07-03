@@ -1,12 +1,13 @@
 # mandelbrot
 
-mandelbrot viewer in c++ 
+mandelbrot viewer in c++
 
-## todo:
+## todo
 
-* better pan/zoom (the pan/zoom uses build in sfml-view, but the panning isn't great I think I should scrap my use of view) (this is also necessary because the mapping is FORCEd to be a float)
 * coloring schemes
 * julia sets
 * testing multiprecision / big integer
-* improve resize behavoir (it's fine it just resets zoom level)
-* add a way to specify pan/zoom when loading
+* Fix resize / camera behavoir on resize
+* add a way to specify pan/zoom when loading (probably solved by the next thing)
+* add a scenic / auto camera mode that toggles with the pan/zoom control
+* scrolling is reversed
