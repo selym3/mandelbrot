@@ -10,7 +10,7 @@ clang++ -O3 main.cpp -lsfml-window -lsfml-graphics -lsfml-system -pthread -o mai
 int main()
 {
     Viewer app {
-        640, 640
+        640, 480
     };
 
     const sf::Int32 delay { static_cast<sf::Int32>(1000.0 / 60.0) }; 

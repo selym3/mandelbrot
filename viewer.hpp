@@ -15,13 +15,13 @@ std::ostream& operator<<(std::ostream& os, const sf::Vector2<T>& rhs)
     return os << "( " << rhs.x << " , " << rhs.y << " )";
 }
 
-// mb::camera make_camera(const sf::RenderTarget& target, const mb::vec2& b, const mb::vec2& t)
-// {
-//     return mb::camera(
-//         mb::vec2(0), mb::vec2::from(target.getSize()),
-//         b, t
-//     );
-// }
+mb::camera make_camera(const sf::RenderTarget& target, const mb::vec2& bottom, const mb::vec2& top)
+{
+    return mb::camera(
+        mb::vec2(0, 0), mb::vec2::from(target.getSize()),
+        bottom, top
+    );
+}
 
 class Viewer
 {
@@ -47,18 +47,65 @@ private:
         _window.setPosition(vm);
     }
 
-    void scale()
+    void scale_camera()
     {
-        std::cout << "Implement resize scaling\n";
+        _camera = get_camera();
+        mb::vec2 size { mb::vec2::from(_window.getSize()) };
+        std::cout << "Screen size is: " << size << "\n";
+
+        if (size.x > size.y)
+            size /= size.y;
+        else
+            size /= size.x;
+        
+        std::cout << "Ratio is: " << size << "\n";
+        _camera *= size;
+        std::cout << "Camera is: " << _camera << "\n";
+        std::cout << "\n";
     }
 
-    // const mb::vec2 bottom = mb::vec2(-2, -2),
-    //     top = mb::vec2(+2, +2);
-    
-    // mb::camera get_camera()
-    // {
-    //     return make_camera(_window, bottom, top);
-    // }
+    void scale_pixels()
+    {
+        const auto size = _window.getSize();
+        bool did_resize = _pixels.set_size(size);
+
+        // std::cout << "Pixel buffer size: " << _pixels.get_size() << "\n";
+
+        if (did_resize)
+            std::cout << "Resized pixel buffer\n";
+        else
+            std::cout << "Didn't resize pixel buffer\n";
+    }
+
+    void scale()
+    {
+        scale_camera();
+        scale_pixels();
+    }
+
+    void debug_scale()
+    {
+        std::cout << "\n---\n";
+        std::cout << "Window size: " << _window.getSize() << "\n";
+        std::cout << "Pixels size: " << _pixels.get_size() << "\n";
+        std::cout << "Camera data: " << _camera << "\n";
+        std::cout << _camera._bottom << " -> " << _camera.world_to_pixel(_camera._bottom) << "\n";
+        std::cout << _camera._top << " -> " << _camera.world_to_pixel(_camera._top) << "\n";
+        std::cout << "\n---\n";
+    }
+
+    mb::camera get_camera()
+    {
+        const mb::vec2 bottom = mb::vec2(-2, -2),
+            top = mb::vec2(+2, +2);
+
+        // std::cout << bottom << "\n";
+        // std::cout << top << "\n";
+        // auto _c = make_camera(_window, bottom, top);
+        // std::cout << _c << "\n";
+
+        return make_camera(_window, bottom, top);
+    }
 
 
 private:
@@ -147,6 +194,12 @@ private:
             }
 
             // test code
+            else if (e.key.code == sf::Keyboard::Space)
+            {
+                debug_scale();
+            }
+
+            // test code
             else if (e.key.code == sf::Keyboard::Up)
             {
                 ++mb::MAX_ITERS;
@@ -197,10 +250,12 @@ public:
         _window { 
             sf::VideoMode(width, height), 
             "Mandelbrot Viewer",
-            sf::Style::Default
+            sf::Style::Default,
+            // sf::Style::None
         },
         _pixels { _window.getSize() },
-        _camera { mb::vec2(0), mb::vec2::from(_window.getSize()), mb::vec2(-2,-2), mb::vec2(+2,+2) }
+        // _camera { mb::vec2(0), mb::vec2::from(_window.getSize()), mb::vec2(-2,-2), mb::vec2(+2,+2) }
+        _camera { get_camera() }
     {
         center();
     }
@@ -217,7 +272,8 @@ public:
         }
 
         // if (!sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
-        calculate_set_multi(16);
+        // calculate_set_multi(0);
+        calculate_set();
         draw();
 
         update_view();
