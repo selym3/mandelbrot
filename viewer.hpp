@@ -49,19 +49,25 @@ private:
 
     void scale_camera()
     {
-        _camera = get_camera();
+        std::cout << "Calling scale camera.\n";
+        std::cout << "Camera before: "  << _camera << "\n";
+        // _camera = get_camera();
+        _camera._bottom = mb::vec2(-2, -2);
+        _camera._top = mb::vec2(+2, +2);
         mb::vec2 size { mb::vec2::from(_window.getSize()) };
-        std::cout << "Screen size is: " << size << "\n";
+        _camera._size = size;
+        // std::cout << "Screen size is: " << size << "\n";
 
         if (size.x > size.y)
             size /= size.y;
         else
             size /= size.x;
         
-        std::cout << "Ratio is: " << size << "\n";
+        // std::cout << "Ratio is: " << size << "\n";
+        std::cout << "Camera intermediate: "  << _camera << "\n";
         _camera *= size;
-        std::cout << "Camera is: " << _camera << "\n";
-        std::cout << "\n";
+        std::cout << "Camera after: " << _camera << "\n";
+        // std::cout << "\n";
     }
 
     void scale_pixels()
