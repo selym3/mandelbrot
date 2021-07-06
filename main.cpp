@@ -13,7 +13,7 @@ int main()
         640, 480
     };
 
-    const sf::Int32 delay { static_cast<sf::Int32>(1000.0 / 60.0) }; 
+    const sf::Int32 delay = 1000.0 / 60.0; 
 
     std::cout << "Began execution...\n";
     while (app.is_running())
