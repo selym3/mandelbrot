@@ -27,6 +27,8 @@ namespace mb
     // CONSTANTS //
     ///////////////
 
+    constexpr static std::size_t THREADS = 16;
+
     static std::size_t MAX_ITERS = 20;
     static number BOUNDS = number(2);
 

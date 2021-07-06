@@ -49,38 +49,21 @@ private:
 
     void scale_camera()
     {
-        std::cout << "Calling scale camera.\n";
-        std::cout << "Camera before: "  << _camera << "\n";
-        // _camera = get_camera();
-        _camera._bottom = mb::vec2(-2, -2);
-        _camera._top = mb::vec2(+2, +2);
+        _camera = get_camera();
         mb::vec2 size { mb::vec2::from(_window.getSize()) };
-        _camera._size = size;
-        // std::cout << "Screen size is: " << size << "\n";
 
         if (size.x > size.y)
             size /= size.y;
         else
             size /= size.x;
         
-        // std::cout << "Ratio is: " << size << "\n";
-        std::cout << "Camera intermediate: "  << _camera << "\n";
         _camera *= size;
-        std::cout << "Camera after: " << _camera << "\n";
-        // std::cout << "\n";
     }
 
     void scale_pixels()
     {
         const auto size = _window.getSize();
-        bool did_resize = _pixels.set_size(size);
-
-        // std::cout << "Pixel buffer size: " << _pixels.get_size() << "\n";
-
-        if (did_resize)
-            std::cout << "Resized pixel buffer\n";
-        else
-            std::cout << "Didn't resize pixel buffer\n";
+        _pixels.set_size(size);
     }
 
     void scale()
@@ -102,13 +85,8 @@ private:
 
     mb::camera get_camera()
     {
-        const mb::vec2 bottom = mb::vec2(-2, -2),
+        const static mb::vec2 bottom = mb::vec2(-2, -2),
             top = mb::vec2(+2, +2);
-
-        // std::cout << bottom << "\n";
-        // std::cout << top << "\n";
-        // auto _c = make_camera(_window, bottom, top);
-        // std::cout << _c << "\n";
 
         return make_camera(_window, bottom, top);
     }
@@ -188,7 +166,7 @@ private:
         }
         else if (e.type == sf::Event::MouseWheelScrolled)
         {
-            float scalar = e.mouseWheelScroll.delta > 0 ? 1.01f : 0.99f;
+            float scalar = e.mouseWheelScroll.delta > 0 ? 1.1f : 0.9f;
             zoom_about(scalar, getMousePosition());
         }
         else if (e.type == sf::Event::KeyPressed)
@@ -257,10 +235,8 @@ public:
             sf::VideoMode(width, height), 
             "Mandelbrot Viewer",
             sf::Style::Default,
-            // sf::Style::None
         },
         _pixels { _window.getSize() },
-        // _camera { mb::vec2(0), mb::vec2::from(_window.getSize()), mb::vec2(-2,-2), mb::vec2(+2,+2) }
         _camera { get_camera() }
     {
         center();
@@ -277,9 +253,7 @@ public:
             handle_event(e);
         }
 
-        // if (!sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
-        // calculate_set_multi(0);
-        calculate_set();
+        calculate_set_multi(mb::THREADS);
         draw();
 
         update_view();
