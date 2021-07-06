@@ -15,14 +15,6 @@ std::ostream& operator<<(std::ostream& os, const sf::Vector2<T>& rhs)
     return os << "( " << rhs.x << " , " << rhs.y << " )";
 }
 
-mb::camera make_camera(const sf::RenderTarget& target, const mb::vec2& bottom, const mb::vec2& top)
-{
-    return mb::camera(
-        mb::vec2(0, 0), mb::vec2::from(target.getSize()),
-        bottom, top
-    );
-}
-
 class Viewer
 {
 private:
@@ -32,6 +24,19 @@ private:
 
     mb::camera _camera;
     MouseControl _mcntrl;
+
+private:
+
+    enum ViewingMode
+    {
+        MouseControl,
+        Cinematic,
+
+        // Keep Last
+        ModeCount
+    };
+
+    ViewingMode _vmode;
 
 private:
 
@@ -60,16 +65,9 @@ private:
         _camera *= size;
     }
 
-    void scale_pixels()
-    {
-        const auto size = _window.getSize();
-        _pixels.set_size(size);
-    }
-
     void scale()
     {
         scale_camera();
-        scale_pixels();
     }
 
     void debug_scale()
@@ -85,10 +83,16 @@ private:
 
     mb::camera get_camera()
     {
+        const static mb::vec2 zero = 
+            mb::vec2(0, 0);
+
         const static mb::vec2 bottom = mb::vec2(-2, -2),
             top = mb::vec2(+2, +2);
 
-        return make_camera(_window, bottom, top);
+        return mb::camera(
+            zero, mb::vec2::from(_pixels.get_size()),
+            bottom, top
+        );
     }
 
 
@@ -124,19 +128,19 @@ private:
     {
         if (threads == 0) return calculate_set();
         
-        auto multi_supplier = [&](int who)
+        auto multi_supplier = [&](std::size_t who)
         {
-            const auto size = _window.getSize();
+            const auto size = _pixels.get_size();
             for (; who < size.x * size.y; who += threads)
             {
-                const sf::Vector2u pixel { who % size.x, who / size.x };
+                const sf::Vector2<std::size_t> pixel { who % size.x, who / size.x };
                 const auto coord = _camera.pixel_to_world(mb::vec2::from(pixel));
                 _pixels.set_color(pixel, get_color(coord));
             }
         };
 
         std::vector<std::thread> pool;
-        for (int who = 0; who < threads; ++who)
+        for (std::size_t who = 0; who < threads; ++who)
             pool.emplace_back(multi_supplier, who);
 
         for (auto& thread : pool)
@@ -160,15 +164,21 @@ private:
         {
             _window.close();
         }
+
         else if (e.type == sf::Event::Resized)
         {
             scale();
         }
+
         else if (e.type == sf::Event::MouseWheelScrolled)
         {
-            float scalar = e.mouseWheelScroll.delta > 0 ? 1.1f : 0.9f;
-            zoom_about(scalar, getMousePosition());
+            if (_vmode == ViewingMode::MouseControl)
+            {
+                float scalar = e.mouseWheelScroll.delta > 0 ? 1.1f : 0.9f;
+                zoom_about(scalar, getMousePosition());
+            }
         }
+
         else if (e.type == sf::Event::KeyPressed)
         {
             if (e.key.code == sf::Keyboard::Escape)
@@ -178,6 +188,14 @@ private:
             }
 
             // test code
+            else if (e.key.code == sf::Keyboard::Z)
+            {
+                scale();
+            }
+            else if (e.key.code == sf::Keyboard::X)
+            {
+                _vmode = static_cast<ViewingMode>(((static_cast<int>(_vmode) + 1) % ViewingMode::ModeCount));
+            }
             else if (e.key.code == sf::Keyboard::Space)
             {
                 debug_scale();
@@ -200,7 +218,7 @@ private:
     { return static_cast<Vt>(sf::Mouse::getPosition(_window)); }
 
     mb::vec2 start = { 0, 0 };
-    void update_view()
+    void update_view_mouse()
     {
         if (_mcntrl.isPressed(0))
             start = mb::vec2::from(getMousePosition());
@@ -217,6 +235,21 @@ private:
             // Reset mouse position
             start = mouse;
         }
+    }
+
+    void update_view()
+    {
+        switch (_vmode)
+        {
+        case ViewingMode::MouseControl:
+            update_view_mouse();
+            break;
+        case ViewingMode::Cinematic:
+            zoom_about(0.9, getMousePosition());
+            break;
+        default:
+            break;
+        };
     }
 
     void zoom_about(float scalar, const sf::Vector2i& pixel)
@@ -237,7 +270,8 @@ public:
             sf::Style::Default,
         },
         _pixels { _window.getSize() },
-        _camera { get_camera() }
+        _camera { get_camera() },
+        _vmode { ViewingMode::MouseControl }
     {
         center();
     }

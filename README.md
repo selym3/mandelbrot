@@ -8,6 +8,6 @@ mandelbrot viewer in c++
 * julia sets
 * testing multiprecision / big integer
 * Fix resize / camera behavoir on resize
-* add a way to specify pan/zoom when loading (probably solved by the next thing)
-* add a scenic / auto camera mode that toggles with the pan/zoom control
-* scrolling is reversed
+* Add better pan / zoom after screen is resized
+* Detect if scrolling on device is reversed
+* Add more viewing modes / improve viewing mode code
