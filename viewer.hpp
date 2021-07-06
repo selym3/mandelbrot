@@ -22,7 +22,21 @@ private:
     sf::RenderWindow _window;
     Pixels _pixels;
 
-    MouseControl mcntrl;
+    mb::camera _camera;
+    MouseControl _mcntrl;
+
+private:
+
+    enum ViewingMode
+    {
+        MouseControl,
+        Cinematic,
+
+        // Keep Last
+        ModeCount
+    };
+
+    ViewingMode _vmode;
 
 private:
 
@@ -38,67 +52,53 @@ private:
         _window.setPosition(vm);
     }
 
-    // sf::Vector2f uv;
-    float start_size = 4.0f;
-    float zoom = start_size;
-
-    void scale_window()
+    void scale_camera()
     {
-        // Find pixel size of window
-        auto size = _window.getSize();
+        _camera = get_camera();
+        mb::vec2 size { mb::vec2::from(_window.getSize()) };
 
-        // Create a copy of the window's view to modify it
-        auto view = _window.getView();
-        view.setCenter({ 0, 0 });
-
-        // Always have the smallest dimension be the size of the
-        // zoom
         if (size.x > size.y)
-        {
-            float a = size.x / static_cast<float>(size.y);
-            view.setSize({ a * zoom, zoom });
-        }
+            size /= size.y;
         else
-        {
-            float a = size.y / static_cast<float>(size.x);
-            view.setSize({ zoom, a * zoom });
-        }
-
-        // Apply the changes to the window
-        _window.setView(view);
+            size /= size.x;
+        
+        _camera *= size;
     }
 
-    void scale_pixels()
+    void scale()
     {
+        scale_camera();
+    }
 
-        // Find the pixel size of the window (to scale the pixel buffer by)
-        const auto size = _window.getSize();
-        auto did_resize = _pixels.set_size(size);
-        // std::cout << "Buffer " << (did_resize ? "" : "not" ) << " resized\n";
+    void debug_scale()
+    {
+        std::cout << "\n---\n";
+        std::cout << "Window size: " << _window.getSize() << "\n";
+        std::cout << "Pixels size: " << _pixels.get_size() << "\n";
+        std::cout << "Camera data: " << _camera << "\n";
+        std::cout << _camera._bottom << " -> " << _camera.world_to_pixel(_camera._bottom) << "\n";
+        std::cout << _camera._top << " -> " << _camera.world_to_pixel(_camera._top) << "\n";
+        std::cout << "\n---\n";
+    }
 
-        // Find the camera space of the window (to scale the pixel rendering by)
-        const auto view = _window.getView();
-        const auto vsize = view.getSize();
+    mb::camera get_camera()
+    {
+        const static mb::vec2 zero = 
+            mb::vec2(0, 0);
 
-        auto uv = sf::Vector2f(
-            vsize.x / size.x,
-            vsize.y / size.y
+        const static mb::vec2 bottom = mb::vec2(-2, -2),
+            top = mb::vec2(+2, +2);
+
+        return mb::camera(
+            zero, mb::vec2::from(_pixels.get_size()),
+            bottom, top
         );
-        _pixels.setScale(uv);
-
-        auto top_left = -vsize / 2.f;
-        _pixels.setPosition(top_left);
     }
 
-    void reset_screen()
-    {
-        scale_window();
-        scale_pixels();
-    }
 
 private:
 
-    sf::Color get_color( const sf::Vector2f& coords )
+    sf::Color get_color( const mb::vec2& coords )
     {
         // Complex number to iterate over 
         mb::complex c { coords.x, coords.y };
@@ -118,7 +118,7 @@ private:
         {
             for (pixel.x = 0; pixel.x < _pixels.get_width(); ++pixel.x)
             { 
-                auto coords = _window.mapPixelToCoords(pixel);
+                auto coords = _camera.pixel_to_world(mb::vec2::from(pixel));
                 _pixels.set_color(pixel, get_color(coords));
             }
         }
@@ -128,19 +128,19 @@ private:
     {
         if (threads == 0) return calculate_set();
         
-        auto multi_supplier = [&](int who)
+        auto multi_supplier = [&](std::size_t who)
         {
-            const sf::Vector2i size = static_cast<sf::Vector2i>(_window.getSize());
+            const auto size = _pixels.get_size();
             for (; who < size.x * size.y; who += threads)
             {
-                const sf::Vector2i pixel { who % size.x, who / size.x };
-                const sf::Vector2f coord = _window.mapPixelToCoords(pixel);
+                const sf::Vector2<std::size_t> pixel { who % size.x, who / size.x };
+                const auto coord = _camera.pixel_to_world(mb::vec2::from(pixel));
                 _pixels.set_color(pixel, get_color(coord));
             }
         };
 
         std::vector<std::thread> pool;
-        for (int who = 0; who < threads; ++who)
+        for (std::size_t who = 0; who < threads; ++who)
             pool.emplace_back(multi_supplier, who);
 
         for (auto& thread : pool)
@@ -164,21 +164,41 @@ private:
         {
             _window.close();
         }
+
         else if (e.type == sf::Event::Resized)
         {
-            reset_screen();
+            scale();
         }
+
         else if (e.type == sf::Event::MouseWheelScrolled)
         {
-            float scalar = e.mouseWheelScroll.delta > 0 ? 1.01f : 0.99f;
-            zoom_about(scalar, getMousePosition());
+            if (_vmode == ViewingMode::MouseControl)
+            {
+                float scalar = e.mouseWheelScroll.delta > 0 ? 1.1f : 0.9f;
+                zoom_about(scalar, getMousePosition());
+            }
         }
+
         else if (e.type == sf::Event::KeyPressed)
         {
             if (e.key.code == sf::Keyboard::Escape)
             {
                 _window.close();
                 return;
+            }
+
+            // test code
+            else if (e.key.code == sf::Keyboard::Z)
+            {
+                scale();
+            }
+            else if (e.key.code == sf::Keyboard::X)
+            {
+                _vmode = static_cast<ViewingMode>(((static_cast<int>(_vmode) + 1) % ViewingMode::ModeCount));
+            }
+            else if (e.key.code == sf::Keyboard::Space)
+            {
+                debug_scale();
             }
 
             // test code
@@ -197,37 +217,48 @@ private:
     Vt getMousePosition() const
     { return static_cast<Vt>(sf::Mouse::getPosition(_window)); }
 
-    void zoom_about(float scalar, const sf::Vector2i& pixel)
+    mb::vec2 start = { 0, 0 };
+    void update_view_mouse()
     {
-        auto view = _window.getView();
-
-        auto before = _window.mapPixelToCoords(pixel);
-        view.zoom(scalar);
-        view.move(before - _window.mapPixelToCoords(pixel, view));
-
-        _window.setView(view);
-    }
-
-    sf::Vector2i start = { 0, 0 };
-    void update_view()
-    {
-        if (mcntrl.isPressed(0))
-            start = getMousePosition();
+        if (_mcntrl.isPressed(0))
+            start = mb::vec2::from(getMousePosition());
         
-        if (mcntrl.isHeld(0))
+        if (_mcntrl.isHeld(0))
         {
             // Calculate offset based on last mouse position
-            const auto mouse = getMousePosition();
-            auto worldset = _window.mapPixelToCoords(mouse) - _window.mapPixelToCoords(start);
+            const auto mouse = mb::vec2::from(getMousePosition());
+            auto worldset = _camera.pixel_to_world(mouse) - _camera.pixel_to_world(start);
 
             // Apply offset
-            auto view = _window.getView();
-            view.move(-worldset);
-            _window.setView(view);
+            _camera -= worldset;
             
             // Reset mouse position
             start = mouse;
         }
+    }
+
+    void update_view()
+    {
+        switch (_vmode)
+        {
+        case ViewingMode::MouseControl:
+            update_view_mouse();
+            break;
+        case ViewingMode::Cinematic:
+            zoom_about(0.9, getMousePosition());
+            break;
+        default:
+            break;
+        };
+    }
+
+    void zoom_about(float scalar, const sf::Vector2i& pixel)
+    {
+        const auto _p = mb::vec2::from(pixel);
+
+        auto before = _camera.pixel_to_world(_p);
+        _camera *= scalar;
+        _camera += (before - _camera.pixel_to_world(_p));
     }
 
 public:
@@ -236,12 +267,13 @@ public:
         _window { 
             sf::VideoMode(width, height), 
             "Mandelbrot Viewer",
-            sf::Style::Default
+            sf::Style::Default,
         },
-        _pixels { _window.getSize() }
+        _pixels { _window.getSize() },
+        _camera { get_camera() },
+        _vmode { ViewingMode::MouseControl }
     {
         center();
-        reset_screen();
     }
 
     bool is_running() const
@@ -255,13 +287,11 @@ public:
             handle_event(e);
         }
 
-        if (!mcntrl.isDown(1))
-            calculate_set_multi(16);
-
+        calculate_set_multi(mb::THREADS);
         draw();
 
         update_view();
-        mcntrl.update();
+        _mcntrl.update();
     }
 
 };

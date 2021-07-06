@@ -60,10 +60,10 @@ public:
     template <typename T>
     bool set_size(const sf::Vector2<T>& size)
     {
-        const auto old_size = _get_size();
+        const std::size_t old_size = _get_size();
 
         _width = size.x, _height = size.y;
-        const auto new_size = _get_size();
+        const std::size_t new_size = _get_size();
 
         if (new_size > old_size)
         {
@@ -89,14 +89,11 @@ public:
 
     void draw(sf::RenderTarget& target, sf::RenderStates states) const override 
     {
-        sf::Image image;
-        image.create(_width, _height, &_data[0]);
-
         sf::Texture texture;
-        texture.loadFromImage(image);
+        texture.create(_width, _height);
+        texture.update(_data.data());
 
-        sf::Sprite sprite;
-        sprite.setTexture(texture, true);
+        sf::Sprite sprite(texture);
 
         states.transform *= getTransform();
         target.draw(sprite, states);

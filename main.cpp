@@ -13,7 +13,7 @@ int main()
         640, 480
     };
 
-    const sf::Int32 delay { static_cast<sf::Int32>(1000.0 / 60.0) }; 
+    const sf::Int32 delay = 1000.0 / 60.0; 
 
     std::cout << "Began execution...\n";
     while (app.is_running())
@@ -23,7 +23,7 @@ int main()
         auto end = std::chrono::system_clock::now();
         
         double took = static_cast<std::chrono::duration<double>>(end-start).count();
-        std::cout << "Took: " <<  took << " | FPS: " << (1.0 / took) << "\n";
+        // std::cout << "Took: " <<  took << " | FPS: " << (1.0 / took) << "\n";
 
         sf::sleep(sf::milliseconds(delay));
     }
