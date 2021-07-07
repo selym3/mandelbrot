@@ -18,6 +18,9 @@ std::ostream& operator<<(std::ostream& os, const sf::Vector2<T>& rhs)
 class Viewer
 {
 private:
+    /////////////////
+    // VIEWER DATA //
+    /////////////////
 
     sf::RenderWindow _window;
     Pixels _pixels;
@@ -26,10 +29,13 @@ private:
     MouseControl _mcntrl;
 
 private:
+    /////////////////////// 
+    // VIEW MODE CONTROL //
+    ///////////////////////
 
     enum ViewingMode
     {
-        MouseControl,
+        MouseControl = 0,
         Cinematic,
 
         // Keep Last
@@ -38,7 +44,81 @@ private:
 
     ViewingMode _vmode;
 
+    ViewingMode next_vmode() const
+    {
+        return static_cast<ViewingMode>(
+            (static_cast<int>(_vmode) + 1) % 
+            static_cast<int>(ViewingMode::ModeCount)
+        );
+    }
+
+    // main stuff
+
+    void update_view()
+    {
+        switch (_vmode)
+        {
+        case ViewingMode::MouseControl:
+            update_view_mouse();
+            break;
+        case ViewingMode::Cinematic:
+            zoom_about(0.9, getMousePosition());
+            break;
+        default:
+            break;
+        };
+    }
+    
+    void handle_event_vmode(sf::Event& e)
+    {
+        switch (_vmode)
+        {
+        case ViewingMode::MouseControl:
+            float scalar = e.mouseWheelScroll.delta > 0 ? 1.1f : 0.9f;
+            zoom_about(scalar, getMousePosition());
+            break;
+        }
+    }
+
+    // helpers 
+
+    template <typename Vt = sf::Vector2i>
+    Vt getMousePosition() const
+    { return static_cast<Vt>(sf::Mouse::getPosition(_window)); }
+
+    mb::vec2 start = { 0, 0 };
+    void update_view_mouse()
+    {
+        if (_mcntrl.isPressed(0))
+            start = mb::vec2::from(getMousePosition());
+        
+        if (_mcntrl.isHeld(0))
+        {
+            // Calculate offset based on last mouse position
+            const auto mouse = mb::vec2::from(getMousePosition());
+            auto worldset = _camera.pixel_to_world(mouse) - _camera.pixel_to_world(start);
+
+            // Apply offset
+            _camera -= worldset;
+            
+            // Reset mouse position
+            start = mouse;
+        }
+    }
+
+    void zoom_about(float scalar, const sf::Vector2i& pixel)
+    {
+        const auto _p = mb::vec2::from(pixel);
+
+        auto before = _camera.pixel_to_world(_p);
+        _camera *= scalar;
+        _camera += (before - _camera.pixel_to_world(_p));
+    }
+
 private:
+    ////////////////////
+    // SCREEN SCALING //
+    ////////////////////
 
     void center()
     {
@@ -70,17 +150,6 @@ private:
         scale_camera();
     }
 
-    void debug_scale()
-    {
-        std::cout << "\n---\n";
-        std::cout << "Window size: " << _window.getSize() << "\n";
-        std::cout << "Pixels size: " << _pixels.get_size() << "\n";
-        std::cout << "Camera data: " << _camera << "\n";
-        std::cout << _camera._bottom << " -> " << _camera.world_to_pixel(_camera._bottom) << "\n";
-        std::cout << _camera._top << " -> " << _camera.world_to_pixel(_camera._top) << "\n";
-        std::cout << "\n---\n";
-    }
-
     mb::camera get_camera()
     {
         const static mb::vec2 zero = 
@@ -97,6 +166,9 @@ private:
 
 
 private:
+    ////////////////////////
+    // COLOR CALCULATIONS //
+    ////////////////////////
 
     sf::Color get_color( const mb::vec2& coords )
     {
@@ -148,6 +220,9 @@ private:
     }
 
 private:
+    //////////////////
+    // DRAW ROUTINE //
+    //////////////////
 
     void draw()
     {
@@ -157,26 +232,23 @@ private:
     }
 
 private:
+    ///////////////////
+    // EVENT HANDLER //
+    ///////////////////
 
     void handle_event(sf::Event& e)
     {
+        handle_event_vmode(e);
+
         if (e.type == sf::Event::Closed)
         {
             _window.close();
+            return;
         }
 
         else if (e.type == sf::Event::Resized)
         {
             scale();
-        }
-
-        else if (e.type == sf::Event::MouseWheelScrolled)
-        {
-            if (_vmode == ViewingMode::MouseControl)
-            {
-                float scalar = e.mouseWheelScroll.delta > 0 ? 1.1f : 0.9f;
-                zoom_about(scalar, getMousePosition());
-            }
         }
 
         else if (e.type == sf::Event::KeyPressed)
@@ -194,11 +266,7 @@ private:
             }
             else if (e.key.code == sf::Keyboard::X)
             {
-                _vmode = static_cast<ViewingMode>(((static_cast<int>(_vmode) + 1) % ViewingMode::ModeCount));
-            }
-            else if (e.key.code == sf::Keyboard::Space)
-            {
-                debug_scale();
+                _vmode = next_vmode();
             }
 
             // test code
@@ -213,55 +281,10 @@ private:
         }
     }
 
-    template <typename Vt = sf::Vector2i>
-    Vt getMousePosition() const
-    { return static_cast<Vt>(sf::Mouse::getPosition(_window)); }
-
-    mb::vec2 start = { 0, 0 };
-    void update_view_mouse()
-    {
-        if (_mcntrl.isPressed(0))
-            start = mb::vec2::from(getMousePosition());
-        
-        if (_mcntrl.isHeld(0))
-        {
-            // Calculate offset based on last mouse position
-            const auto mouse = mb::vec2::from(getMousePosition());
-            auto worldset = _camera.pixel_to_world(mouse) - _camera.pixel_to_world(start);
-
-            // Apply offset
-            _camera -= worldset;
-            
-            // Reset mouse position
-            start = mouse;
-        }
-    }
-
-    void update_view()
-    {
-        switch (_vmode)
-        {
-        case ViewingMode::MouseControl:
-            update_view_mouse();
-            break;
-        case ViewingMode::Cinematic:
-            zoom_about(0.9, getMousePosition());
-            break;
-        default:
-            break;
-        };
-    }
-
-    void zoom_about(float scalar, const sf::Vector2i& pixel)
-    {
-        const auto _p = mb::vec2::from(pixel);
-
-        auto before = _camera.pixel_to_world(_p);
-        _camera *= scalar;
-        _camera += (before - _camera.pixel_to_world(_p));
-    }
-
 public:
+    /////////////////
+    // CONSTRUCTOR //
+    /////////////////
 
     Viewer(std::size_t width, std::size_t height) :
         _window { 
@@ -276,6 +299,11 @@ public:
         center();
     }
 
+public:
+    ///////////////
+    // MAIN LOOP //
+    ///////////////
+    
     bool is_running() const
     { return _window.isOpen(); }
 

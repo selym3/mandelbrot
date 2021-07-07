@@ -16,8 +16,7 @@ T map(const T& v, const T& a, const T& b, const T& c, const T& d)
 template <typename T>
 class camera
 {   
-// private: 
-public:
+private: 
     T _zero, _size; // window 1
     T _bottom, _top; // window 2
 
