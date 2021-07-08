@@ -36,6 +36,7 @@ private:
     enum ViewingMode
     {
         MouseControl = 0,
+        KeyboardControl,
         Cinematic,
 
         // Keep Last
@@ -47,8 +48,8 @@ private:
     ViewingMode next_vmode() const
     {
         return static_cast<ViewingMode>(
-            (static_cast<int>(_vmode) + 1) % 
-            static_cast<int>(ViewingMode::ModeCount)
+            (_vmode + 1) % 
+            ViewingMode::ModeCount
         );
     }
 
@@ -64,6 +65,9 @@ private:
         case ViewingMode::Cinematic:
             zoom_about(0.9, getMousePosition());
             break;
+        case ViewingMode::KeyboardControl:
+            update_view_keyboard();
+            break;
         default:
             break;
         };
@@ -74,17 +78,20 @@ private:
         switch (_vmode)
         {
         case ViewingMode::MouseControl:
-            float scalar = e.mouseWheelScroll.delta > 0 ? 1.1f : 0.9f;
-            zoom_about(scalar, getMousePosition());
+        {   
+            if (e.type == sf::Event::MouseWheelScrolled)     
+            {
+                float scalar = e.mouseWheelScroll.delta > 0 ? 1.1f : 0.9f;
+                zoom_about(scalar, getMousePosition());
+            }
+            break;
+        }
+        default:
             break;
         }
     }
 
     // helpers 
-
-    template <typename Vt = sf::Vector2i>
-    Vt getMousePosition() const
-    { return static_cast<Vt>(sf::Mouse::getPosition(_window)); }
 
     mb::vec2 start = { 0, 0 };
     void update_view_mouse()
@@ -105,6 +112,32 @@ private:
             start = mouse;
         }
     }
+
+    void update_view_keyboard()
+    {
+        using KB = sf::Keyboard;
+
+        // zoom
+        if (KB::isKeyPressed(KB::Q))
+            _camera *= 0.9;
+        else if (KB::isKeyPressed(KB::E))
+            _camera *= 1.1;
+
+
+        // translation
+        auto shift = mb::vec2(
+            (KB::isKeyPressed(KB::D) - KB::isKeyPressed(KB::A)),
+            (KB::isKeyPressed(KB::S) - KB::isKeyPressed(KB::W))
+        );
+
+        shift *= 5 * (_camera.pixel_to_world({1,1}) - _camera.pixel_to_world({0,0}));
+
+        _camera += shift;
+    }
+    
+    template <typename Vt = sf::Vector2i>
+    Vt getMousePosition() const
+    { return static_cast<Vt>(sf::Mouse::getPosition(_window)); }
 
     void zoom_about(float scalar, const sf::Vector2i& pixel)
     {
@@ -270,11 +303,11 @@ private:
             }
 
             // test code
-            else if (e.key.code == sf::Keyboard::Up)
+            else if (e.key.code == sf::Keyboard::Equal)
             {
                 ++mb::MAX_ITERS;
             }
-            else if (e.key.code == sf::Keyboard::Down)
+            else if (e.key.code == sf::Keyboard::Hyphen)
             {
                 --mb::MAX_ITERS;
             }
