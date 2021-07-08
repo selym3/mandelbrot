@@ -4,6 +4,7 @@ mandelbrot viewer in c++
 
 ## todo
 
+* organize code into cpp / headers
 * coloring schemes
 * julia sets
 * testing multiprecision / big integer
