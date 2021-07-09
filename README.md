@@ -4,6 +4,7 @@ mandelbrot viewer in c++
 
 ## todo
 
+* Implement speedups from [here](https://en.wikipedia.org/wiki/Plotting_algorithms_for_the_Mandelbrot_set)
 * coloring schemes
 * julia sets
 * testing multiprecision / big integer
